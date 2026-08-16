@@ -11,65 +11,37 @@ jobs:
   sign:
     runs-on: ubuntu-latest
 
-    ### 账号列表（每个名字 = 一个 GitHub Environment）
-    # 用法一 · 多账户：
-    #   在 Settings → Environments 为每个账号建同名 Environment，
-    #   各自填 COOKIES / CAPTCHA_KEY（可选 USERNAME / PASSWORD）。
-    #   想加账号就往下面列表里加名字（如 acc3、acc4）并建对应 Environment。
-    #   ⚠️ 多账户模式下【不要】在“仓库级 Secrets”里填 COOKIES，
-    #      否则没配置的账号会误用仓库级的值，无法自动跳过。
-    #
-    # 用法二 · 单账户 + 仓库级 Secrets（最省事，不用建 Environment）：
-    #   把下面列表改成只留一个名字，如  env: [main]
-    #   然后把 COOKIES / CAPTCHA_KEY 填在“仓库级 Secrets”即可，
-    #   那个 Environment 不建也行（会自动回落到仓库级 Secrets）。
-    #
-    # 自动跳过：任何账号只要读不到 COOKIES（Environment 没建或没填），
-    #   都会被安全跳过，不会让整个流程失败。
+    ### 多账户支持
+    # 在 Settings → Environments 里为每个账号建一个同名的 Environment，
+    # 并在其中各自填写该账号的 COOKIES / CAPTCHA_KEY / PASSWORD Secret。
+    # 想加/减账号，只改下面 env 列表里的名字即可。
     strategy:
       # 一个账号失败不影响其它账号继续签到
       fail-fast: false
       matrix:
-        env: [acc1, acc2]
+        env: [acc1, acc2]  # 有几个账号就写几个 Environment 名，例如再加 acc3
 
     # 动态切换到 matrix.env 对应的 Environment，读取该账号的 Secret
     environment: ${{ matrix.env }}
 
     steps:
-      - name: 检查该账号是否已配置 COOKIES
-        id: guard
-        env:
-          COOKIES: ${{ secrets.COOKIES }}
-        run: |
-          if [ -z "$COOKIES" ]; then
-            echo "::notice::账号 [${{ matrix.env }}] 未配置 COOKIES，已跳过"
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "账号 [${{ matrix.env }}] 已配置，开始执行"
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: 检出代码
-        if: steps.guard.outputs.run == 'true'
         uses: actions/checkout@v4
 
       - name: 设置 Python
-        if: steps.guard.outputs.run == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
       - name: 安装依赖
-        if: steps.guard.outputs.run == 'true'
         run: pip install -r requirements.txt
 
       - name: 生成 config.toml
-        if: steps.guard.outputs.run == 'true'
         run: |
           cat > config.toml <<EOF
           cookie = "${{ secrets.COOKIES }}"
           captcha_key = "${{ secrets.CAPTCHA_KEY }}"
-          username = "${{ secrets.USERNAME }}"
+          username = "${{ env.USERNAME }}"
           password = "${{ secrets.PASSWORD }}"
           timeout  = 20
           min_wait = 1.0
@@ -77,13 +49,11 @@ jobs:
           EOF
 
       - name: 执行签到脚本
-        if: steps.guard.outputs.run == 'true'
         run: |
           sleep $((RANDOM % 300))  # 随机延迟 0～300 秒
           python -m scripts.run_sign
 
       - name: 执行每日答题脚本
-        if: steps.guard.outputs.run == 'true'
         # 答题为尽力而为：题库没收录的新题会被跳过，不影响签到结果
         continue-on-error: true
         run: python -m scripts.run_quiz
