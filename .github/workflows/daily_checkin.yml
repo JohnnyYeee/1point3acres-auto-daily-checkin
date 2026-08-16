@@ -52,3 +52,8 @@ jobs:
         run: |
           sleep $((RANDOM % 300))  # 随机延迟 0～300 秒
           python -m scripts.run_sign
+
+      - name: 执行每日答题脚本
+        # 答题为尽力而为：题库没收录的新题会被跳过，不影响签到结果
+        continue-on-error: true
+        run: python -m scripts.run_quiz
