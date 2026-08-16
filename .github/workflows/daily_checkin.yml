@@ -11,14 +11,18 @@ jobs:
   sign:
     runs-on: ubuntu-latest
 
-    # 如果需要多账户支持，可以取消下面的注释，并在 GitHub Actions 环境中配置对应的 Secrets
     ### 多账户支持
-    # strategy:
-    #   matrix:
-    #     env: [account1env, account2env, account3env]  # 可根据需要添加更多账户/GitHub Actions 环境
+    # 在 Settings → Environments 里为每个账号建一个同名的 Environment，
+    # 并在其中各自填写该账号的 COOKIES / CAPTCHA_KEY / PASSWORD Secret。
+    # 想加/减账号，只改下面 env 列表里的名字即可。
+    strategy:
+      # 一个账号失败不影响其它账号继续签到
+      fail-fast: false
+      matrix:
+        env: [acc1, acc2]  # 有几个账号就写几个 Environment 名，例如再加 acc3
 
-    # # 动态切换到 matrix.env 对应的 Environment
-    # environment: ${{ matrix.env }}
+    # 动态切换到 matrix.env 对应的 Environment，读取该账号的 Secret
+    environment: ${{ matrix.env }}
 
     steps:
       - name: 检出代码
